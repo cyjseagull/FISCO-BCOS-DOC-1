@@ -1115,10 +1115,12 @@ Hello,CNS2
 ```
 ### **setSystemConfigByKey**
 
-运行setSystemConfigByKey，以键值对方式设置系统参数。目前设置的系统参数支持`tx_count_limit`和`tx_gas_limit`。这个两个系统参数的键名可以通过tab键补全：
+运行setSystemConfigByKey，以键值对方式设置系统参数。目前设置的系统参数支持`tx_count_limit`,`tx_gas_limit`, `rpbft_epoch_sealer_num`和`rpbft_epoch_block_num`。这些系统参数的键名可以通过tab键补全：
 
 * tx_count_limit：区块最大打包交易数
 * tx_gas_limit：交易执行允许消耗的最大gas数
+* rpbft_epoch_sealer_num: [RPBFT](../design/consensus/rpbft.md)系统配置，一个共识周期内选取的共识节点数目
+* rpbft_epoch_block_num: [RPBFT](../design/consensus/rpbft.md)系统配置，一个共识周期出块数目
 
 参数： 
 
