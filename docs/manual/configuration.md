@@ -434,17 +434,27 @@ FISCO BCOS v2.3.0引入RPBFT共识算法，具体可参考[这里](../design/con
 - `[consensus].broadcast_prepare_by_tree`：Prepare包树状广播策略开启/关闭开关，设置为`true`，开启Prepare包树状广播策略；设置为`false`，关闭Prepare包树状广播策略，默认为`true`
 
 下面为开启Prepare包树状广播策略后的容错配置：
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2c4be2725ffd8e46264cbb64bfea7c2715337fc0
 - `[consensus].prepare_status_broadcast_percent`：Prepare状态包随机广播的节点占共识节点总数的百分比，取值在25到100之间，默认为33
 - `[consensus].max_request_prepare_waitTime`：节点Prepare缓存缺失时，等待父节点发送Prepare包的最长时延，默认为100ms，超过这个时延后，节点会向其他拥有该Prepare包的节点请求
 
 
 下面为RPBFT模式下开启[Prepare包结构优化](./configuration.html#pbft-prepare)后，负载均衡相关配置：
+<<<<<<< HEAD
 
 - `[consensus].max_request_missedTxs_waitTime`：节点Prepare包内交易缺失后，等待父节点或其他非leader节点同步Prepare包状态的最长时延，默认为100ms，若在等待时延窗口内同步到父节点或非leader节点Prepare包状态，则会随机选取一个节点请求缺失交易；若等待超时，直接向leader请求缺失交易。
 
 
 RPBFT默认配置如下:
+=======
+- `[consensus].max_request_missedTxs_waitTime`：节点Prepare包内交易缺失后，等待父节点或其他非leader节点同步Prepare包状态的最长时延，默认为100ms，若在等待时延窗口内同步到父节点或非leader节点Prepare包状态，则会随机选取一个节点请求缺失交易；若等待超时，直接向leader请求缺失交易。
+
+
+RPBFT默认配置如下
+>>>>>>> 2c4be2725ffd8e46264cbb64bfea7c2715337fc0
 ```ini
 ; 默认开启Prepare包树状广播策略
 broadcast_prepare_by_tree=true
@@ -568,7 +578,11 @@ FISCO BCOS系统目前主要包括如下系统参数(未来会扩展其他系统
     - 机器网络或CPU等硬件性能有限：调小tx_count_limit，或降低业务压力；
     - 业务逻辑太复杂，执行交易时gas不足：调大tx_gas_limit。
 
+<<<<<<< HEAD
     `rpbft_epoch_sealer_num` 和 `rpbft_epoch_block_num` 仅对RPBFT共识算法生效，为了保障共识性能，不建议频繁动态切换共识列表，即不建议 `rpbft_epoch_block_num` 配置值太小
+=======
+    `rpbft_epoch_sealer_num`和`rpbft_epoch_block_num`仅对RPBFT共识算法生效，为了保障共识性能，不建议频繁动态切换共识列表，即不建议`rpbft_epoch_block_num`配置值太小
+>>>>>>> 2c4be2725ffd8e46264cbb64bfea7c2715337fc0
 ```
 
 ```bash
