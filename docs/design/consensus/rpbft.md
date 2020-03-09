@@ -43,25 +43,25 @@ epoch_block_num | 10000| 101 |
 
 ### 算法流程
 
-**确定各共识节点编号IDX**
+#### **确定各共识节点编号IDX**
 
 对所有共识节点的NodeID进行排序，如下图，节点排序后的NodeID索引即为该共识节点编号：
 
 ![](../../../images/consensus/sealer_order.png)
 
-**链初始化**
+#### **链初始化**
 
 链初始化时，RPBFT需要选取`epoch_sealer_num`个共识节点到共识委员中参与共识，目前初步实现是选取索引为0到`epoch_sealer_num-1`的节点参与前`epoch_block_num`个区块共识。
 
 
-**共识委员节点运行PBFT共识算法**
+#### **共识委员节点运行PBFT共识算法**
 
 选取的`epoch_sealer_num`个共识委员节点运行PBFT共识算法，验证节点同步并验证这些共识委员节点共识产生的区块，验证节点的验证步骤包括：
 
 - 校验区块签名列表：每个区块必须至少包含三分之二共识委员的签名
 - 校验区块执行结果：本地区块执行结果须与共识委员在区块头记录的执行结果一致
 
-**动态替换共识委员列表**
+#### **动态替换共识委员列表**
 
 为保障系统安全性，RPBFT算法每出`epoch_block_num`个区块后，会从共识委员列表中剔除一个节点作为验证节点，并加入一个验证节点到共识委员列表中，如下图所示：
 
@@ -70,16 +70,16 @@ epoch_block_num | 10000| 101 |
 RPBFT算法目前实现中，轮流将共识委员列表节点替换为验证节点，设当前有序的共识委员会节点列表为`CommitteeSealersList`，共识节点总数为`N`，则共识`epoch_block_num`个区块后，会将`CommitteeSealersList[0]`剔除共识委员列表，并加入索引为`(CommitteeSealersList[0].IDX + epoch_sealer_num) % N`的验证节点到共识委员列表中。第`i`轮替换周期，将`CommitteeSealersList[i % epoch_sealer_num]`剔除共识委员列表，加入索引为`(CommitteeSealersList[i%epoch_sealer_num].IDX + epoch_sealer_num) % N`的验证节点到共识委员列表中。
 
 
-**节点重启**
+#### **节点重启**
 
 节点重启后，RPBFT算法需要快速确定共识委员列表，由于`epoch_block_num`可通过控制台动态更新，需要结合`epoch_block_num`最新配置生效块高获取共识委员列表，主要步骤如下：
 
-> 计算共识周期rotatingRound
+**计算共识周期rotatingRound**
   
   设当前块高为`blockNum`，`epoch_block_num`生效块高为`enableNum`，则共识周期为:
   `rotatingRound = (blockNumber - enableNum) % epoch_block_num`
 
-> 确定共识委员起始节点索引: `N`为共识节点总数，索引从`(rotatingRound * epoch_block_num) % N`到`(rotatingRound * epoch_block_num + epoch_sealer_num) % N`之间的节点均属于共识委员节点
+**确定共识委员起始节点索引**: `N`为共识节点总数，索引从`(rotatingRound * epoch_block_num) % N`到`(rotatingRound * epoch_block_num + epoch_sealer_num) % N`之间的节点均属于共识委员节点
 
 ### RPBFT算法分析
 
@@ -101,11 +101,11 @@ RPBFT算法目前实现中，轮流将共识委员列表节点替换为验证节
 - 根据共识节点索引，构成完全n叉树(默认是3)
 - Leader产生Prepare包后，沿着树状拓扑将Prepare包转发给其所有下属子节点
 
-> 优势: 
-> - 传播速度比gossip快，无冗余消息包
-> - 分而治之，每个节点出带宽为O(1)，可扩展性强
+**优势**： 
+- 传播速度比gossip快，无冗余消息包
+- 分而治之，每个节点出带宽为O(1)，可扩展性强
 
-> 劣势: 中间节点是单点，需要额外的容错策略
+**劣势**: 中间节点是单点，需要额外的容错策略
 
 
 ### 基于状态包的容错方案
@@ -159,18 +159,18 @@ RPBFT开启Prepare包结构优化后，其他共识节点交易缺失后，向le
   participant sealerB(子节点)
   
   leader->>sealerA(父节点): 发送Prepare
-  leader->>sealerA(父节点): 发送Prepare状态{hash}
-  sealerA(父节点)->>sealerA(父节点): 更新Prepare状态{leader, hash}
+  leader->>sealerA(父节点): 发送PrepareStatus
+  sealerA(父节点)->>sealerA(父节点): 更新Prepare状态缓存{leader, PrepareStatus}
   sealerA(父节点)->>sealerB(子节点): 转发Prepare
   sealerA(父节点)->>sealerA(父节点): 向leader请求并获取缺失交易，Prepare包加入缓存
-  sealerA(父节点)->>sealerB(子节点): 发送Prepare状态{hash}
-  sealerB(子节点)->>sealerB(子节点): 更新Prepare状态{sealerA, hash}
-  sealerB(子节点)->>sealerB(子节点): 向sealerA请求缺失并获取，Prepare包加入缓存
-  sealerB(子节点)->>leader: 发送Prepare状态{hash}
-  
+  sealerA(父节点)->>sealerB(子节点): 发送PrepareStatus
+  sealerB(子节点)->>sealerB(子节点): 更新Prepare状态缓存{sealerA, PrepareStatus}
+  sealerB(子节点)->>sealerB(子节点): 向sealerA请求缺失并获取
+  sealerB(子节点)->>leader: 发送PrepareStatus
+
  ```
 
-> Leader的子节点sealerA的主要处理流程如下：
+**Leader的子节点sealerA的主要处理流程如下：**
 
 1. leader产生新区块后，将仅包含交易哈希列表的Prepare包发送给三个子节点
 
@@ -183,7 +183,7 @@ RPBFT开启Prepare包结构优化后，其他共识节点交易缺失后，向le
 
 4. sealerA收到Leader的回包后，将回包内的交易填充到Prepare包内，并随机选取33%的节点广播Prepare包的状态，主要包括{blockNumber, blockHash, view, idx}，其他节点收到该状态包后，将sealerA最新状态包更新到缓存中
 
-> sealerA的子节点sealerB的主要处理流程如下：
+**sealerA的子节点sealerB的主要处理流程如下**
 
 1. sealerB收到SealerA转发过来的Prepare包后，同样继续将该Prepare包转发给sealerB的子节点
 
