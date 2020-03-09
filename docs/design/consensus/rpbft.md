@@ -1,121 +1,195 @@
 # RPBFT
 
-## 背景
+## 区块链共识困境
 
+### POW类算法
 
-**PBFT算法不具有可扩展性**
-PBFT算法网络复杂度是O(n*n)，每轮共识流程中网络带宽占用最高的Prepare包数目与区块链系统中共识节点数目成正比，不具有可扩展性。
-**HotStuff算法不具有可扩展性**
-Libra采用的HotStuff算法虽然将共识算法网络复杂度降低到O(n)，但每轮共识流程中，网络开销最大的Prepare包的数目仍与共识节点数目成正比，同样不具有可扩展性。
+POW算法因如下特点，不适用于交易吞吐量大、交易时延要求低的联盟链场景：
+- 性能低：10分钟出一个区块，交易确认时延一个小时，耗电多
+- 无最终一致性保证
+- 吞吐量低
 
-综上所述，构建可扩展的区块链系统，直接采用PBFT或HotStuff不可行，由此提出了RPBFT共识算法。
+### 基于分布式一致性原理的共识算法
 
-## RPBFT基本思路
+基于分布式一致性原理的共识算法，如BFT类和CFT类共识算法具有秒级交易确认时延、最终一致性、吞吐量高、不耗电等优势，尤其是BFT类共识算法还可应对节点作恶的场景，在性能、安全性等方面均可达到联盟链需求。
+
+但这类算法复杂度均与节点规模有关，可支撑的网络规模有限，极大限制了联盟链节点规模。
+
+综上所述，FISCO BCOS v2.3.0提出了RPBFT共识算法，旨在保留BFT类共识算法高性能、高吞吐量、高一致性、安全性的同时，尽量减少节点规模对共识算法的影响。
+
+## RPBFT共识算法
+
+### 节点类型
+
+- 共识委员：执行PBFT共识流程的节点，有轮流出块权限
+- 验证节点：不执行共识流程，验证共识节点是否合法、区块验证，经过若干轮共识后，会切换为共识节点
 
 ### 核心思想
 
 ![](../../../images/consensus/rpbft.png)
 
-RPBFT算法在每轮共识流程中，仅选取若干个节点共识出块，并根据区块高度动态更新出块节点。
+RPBFT算法每轮共识流程仅选取若干个共识节点出块，并根据区块高度周期性地替换共识节点，保障系统安全，主要包括2个系统参数：
 
-主要包括2个系统参数：
-- **每轮共识参与的节点数目epoch_sealer_num**：每轮共识过程中参与共识的节点数目；写入创世块中，可通过系统表动态配置
-- **共识节点动态更新周期epoch_block_num**：为防止选取的共识节点联合作恶，RPBFT每出epoch_block_num个区块后，会剔除一个共识节点，并加入一个新的共识节点；`epoch_block_num`配置项写入创世块中，可通过系统表动态配置
+- `epoch_sealer_num`：每轮共识过程中参与共识的节点数目，可通过控制台发交易方式动态配置该参数
+- `epoch_block_num`: 共识节点替换周期，为防止选取的共识节点联合作恶，RPBFT每出epoch_block_num个区块，会替换一个共识节点，可通过控制台发交易的方式动态配置该参数
 
-### RPBFT算法流程
+这两个配置项记录在系统配置表中，配置表主要包括配置关键字、配置对应的值、生效块高三个字段，其中生效块高记录了配置最新值最新生效块高，例：在100块发交易将`epoch_sealer_num`和`epoch_block_num`分别设置为4和10000，此时系统配置表如下：
 
-设共识节点总数为`sealersNum`，RPBFT共识算法主要流程如下：
-
-**确定各共识节点编号**
-
-对`N`个共识节点`NodeID`进行排序，排序后的列表记为`orderedSealerList`，共识节点`NodeID`在`orderedSealerList`中的索引即为该共识节点编号
-
-**系统初始化时，选取epoch_sealer_num个节点参与共识**
-
-目前实现中，系统初始化时，选取索引为0到`epoch_sealer_num-1`的节点参与共识
-
-**选取的节点运行PBFT共识流程**
-
-选取的`epoch_sealer_num`个共识节点运行PBFT算法，其他节点从这些节点同步区块，同步区块过程中需要执行如下校验：
-- **校验区块签名列表**：必须包含至少(2*epoch_sealer_num/3)个来自于被选取节点的签名
-- **校验区块执行结果**
-
-**动态更新共识节点列表**
-
-RPBFT每出`epoch_block_num`个区块后，会动态更新共识节点列表，设系统表中记录最新`epoch_block_num`系统配置对应的生效块高为`configUpdatedBlockNumber`，当前块高为`blockNumber`，具体算法流程如下：
-
-- **确定切换周期`rotatingRound`**：节点刚启动时，切换周期为`(blockNumber - configUpdatedBlockNumber) / epoch_block_num`;运行中的系统，每出`epoch_block_num`个区块，`rotatingRound`加一
-- **确定起始共识节点索引`startIdx`**：计算公式为`rotatingRound * epoch_block_num`
-- **选取`epoch_sealer_num`个共识节点参与共识`chosedConsensusNode`**: 根据前两步计算结果，被选取的共识节点索引为{`startIdx % sealersNum`,  `(startIdx + 1) % sealersNum`, ..., `(startIdx + epoch_sealer_num - 1) % sealersNum`}
-- **动态更新共识节点列表**：每出一个块，均返回第一步计算最新的`rotatingRound`,每当`rotatingRound`增加1，均动态更新`chosedConsensusNode`，设`chosedConsensusNode`的最小共识节点索引为`minConsIdx`，最大共识节点索引为`maxConsIndex`，更新共识节点时，从`chosedConsensusNode`中删除索引为`minConsIdx`的共识节点，并加入索引为`(maxConsIndex + 1) % sealersNum`的共识节点，即：
-    - `rotatingRound`增加1时，剔除索引为`startIdx`的节点，加入索引为`(startIdx + epoch_sealer_num) % sealersNum`的节点
-    - `rotatingRound`增加2时，剔除索引为`startIdx + 1`的节点，加入索引为`(startIdx + epoch_sealer_num + 1) % sealersNum`  的节点
-    - `rotatingRound`增加3时，剔除索引为`startIdx + 2`的节点，加入索引为`(startIdx + epoch_sealer_num + 2) % sealersNum`  的节点
-    - ... ...
+key | value | _enable_num_ |
+:-: | :-: | :-: |
+epoch_sealer_num | 4 | 101 |
+epoch_block_num | 10000| 101 |
 
 
-# RPBFT网络优化
+### 算法流程
 
-## Prepare包树状广播策略
+**确定各共识节点编号IDX**
 
-**基本思路**
+对所有共识节点的NodeID进行排序，如下图，节点排序后的NodeID索引即为该共识节点编号：
+
+![](../../../images/consensus/sealer_order.png)
+
+**链初始化**
+
+链初始化时，RPBFT需要选取`epoch_sealer_num`个共识节点到共识委员中参与共识，目前初步实现是选取索引为0到`epoch_sealer_num-1`的节点参与前`epoch_block_num`个区块共识。
+
+
+**共识委员节点运行PBFT共识算法**
+
+选取的`epoch_sealer_num`个共识委员节点运行PBFT共识算法，验证节点同步并验证这些共识委员节点共识产生的区块，验证节点的验证步骤包括：
+
+- 校验区块签名列表：每个区块必须至少包含三分之二共识委员的签名
+- 校验区块执行结果：本地区块执行结果须与共识委员在区块头记录的执行结果一致
+
+**动态替换共识委员列表**
+
+为保障系统安全性，RPBFT算法每出`epoch_block_num`个区块后，会从共识委员列表中剔除一个节点作为验证节点，并加入一个验证节点到共识委员列表中，如下图所示：
+
+![](../../../images/consensus/epoch_rotating.png)
+
+RPBFT算法目前实现中，轮流将共识委员列表节点替换为验证节点，设当前有序的共识委员会节点列表为`CommitteeSealersList`，共识节点总数为`N`，则共识`epoch_block_num`个区块后，会将`CommitteeSealersList[0]`剔除共识委员列表，并加入索引为`(CommitteeSealersList[0].IDX + epoch_sealer_num) % N`的验证节点到共识委员列表中。第`i`轮替换周期，将`CommitteeSealersList[i % epoch_sealer_num]`剔除共识委员列表，加入索引为`(CommitteeSealersList[i%epoch_sealer_num].IDX + epoch_sealer_num) % N`的验证节点到共识委员列表中。
+
+
+**节点重启**
+
+节点重启后，RPBFT算法需要快速确定共识委员列表，由于`epoch_block_num`可通过控制台动态更新，需要结合`epoch_block_num`最新配置生效块高获取共识委员列表，主要步骤如下：
+
+> 计算共识周期rotatingRound
+  
+  设当前块高为`blockNum`，`epoch_block_num`生效块高为`enableNum`，则共识周期为:
+  `rotatingRound = (blockNumber - enableNum) % epoch_block_num`
+
+> 确定共识委员起始节点索引: `N`为共识节点总数，索引从`(rotatingRound * epoch_block_num) % N`到`(rotatingRound * epoch_block_num + epoch_sealer_num) % N`之间的节点均属于共识委员节点
+
+### RPBFT算法分析
+
+- 网络复杂度：O(epoch_sealer_num * epoch_sealer_num)，与节点规模无关，可扩展性强于PBFT共识算法
+- 性能：可秒级确认，且由于算法复杂度与节点数无关，性能衰减远小于PBFT
+- 一致性、可用性要求：需要至少三分之二的共识委员节点正常工作，系统才可正常共识
+- 安全性：未来可引入VRF算法，随机、私密地替换共识委员，增强共识算法安全性
+
+
+## RPBFT网络优化
+
+### Prepare包广播优化
+
+为进一步提升Prepare包在带宽有限场景下广播效率，FISCO BCOS v2.3.0在RPBFT的基础上实现了Prepare包树状广播，如下图所示：
+
+![](../../../images/consensus/broadcast_prepare_by_tree.png)
+
 
 - 根据共识节点索引，构成完全n叉树(默认是3)
+- Leader产生Prepare包后，沿着树状拓扑将Prepare包转发给其所有下属子节点
 
-- Leader产生Prepare包后，以Leader为顶点，Prepare消息沿树状拓扑转发，如下图：
+> 优势: 
+> - 传播速度比gossip快，无冗余消息包
+> - 分而治之，每个节点出带宽为O(1)，可扩展性强
 
+> 劣势: 中间节点是单点，需要额外的容错策略
+
+
+### 基于状态包的容错方案
+
+```eval_rst
+.. note::
+
+    基于状态包的容错策略仅在开启Prepare包树状广播时生效
+```
+
+为保证节点断连情况下，开启树状广播时，Prepare包能到达每个节点，RPBFT引入了基于状态包的容错机制，如下图所示：
+
+![](../../../images/consensus/prepare_tree_broadcast_fault_tolerant.png)
+
+主要流程包括：
+
+(1) 节点A收到Prepare后，随机选取33%节点广播Prepare包状态，记为prepareStatus，包括{blockNumber, blockHash, view, idx}
+
+(2) 节点B收到节点A随机广播过来的prepareStatus后，判断节点A的Prepare包状态是否比节点B当前Prepare包localPrepare状态新，主要判断包括：
+
+- prepareStatus.blockNumber是否大于当前块高
+- prepareStatus.blockNumber是否大于localPrepare.blockNumber
+- prepareStatus.blockNumber等于localPrepare.blockNumber情况下，prepareStatus.view是否大于localPrepare.view
+
+以上任意一个条件成立，都说明节点A的Prepare包状态比节点B的状态新
+
+(3) 若节点B的状态落后于节点A，且节点B与其父节点断连，则节点B向节点A发出prepareRequest请求，请求相应的Prepare包
+
+(4) 若节点B的状态落后于节点A，但节点B与其父节点相连，若节点B最多等待[100ms(可配)]()后，状态仍然落后于节点A，则节点B向节点A发出prepareRequest请求，请求相应的Prepare包
+
+(5) 节点B收到节点A的prepareRequest请求后，向其回复相应的Prepare消息包
+
+(6) 节点A收到节点B的Prepare消息包后，执行handlePrepare流程处理收到的Prepare包。
+
+
+### 流量负载均衡策略
+
+```eval_rst
+.. note::
+    流量负载均衡策略仅在开启Prepare包树状广播时生效
+```
+
+RPBFT开启Prepare包结构优化后，其他共识节点交易缺失后，向leader请求交易，导致leader出带宽成为瓶颈，FISCO BCOS v2.3.0结合Prepare包状态，设计并实现了负载均衡策略，该策略时序图如下：
+
+```eval_rst
+.. mermaid::
+sequenceDiagram
+ participant leader
+ participant sealerA(父节点)
+ participant sealerB(子节点)
+ 
+ leader->>sealerA(父节点): 发送Prepare
+ leader->>sealerA(父节点): 发送Prepare状态{hash}
+ sealerA(父节点)->>sealerA(父节点): 更新Prepare状态{leader, hash}
+ sealerA(父节点)->>sealerB(子节点): 转发Prepare
+ sealerA(父节点)->>sealerA(父节点): 向leader请求并获取缺失交易，Prepare包加入缓存
+ sealerA(父节点)->>sealerB(子节点): 发送Prepare状态{hash}
+ sealerB(子节点)->>sealerB(子节点): 更新Prepare状态{sealerA, hash}
+ sealerB(子节点)->>sealerB(子节点): 向sealerA请求缺失并获取，Prepare包加入缓存
+ sealerB(子节点)->>leader: 发送Prepare状态{hash}
+ ```
+
+> Leader的子节点sealerA的主要处理流程如下：
+
+1. leader产生新区块后，将仅包含交易哈希列表的Prepare包发送给三个子节点
+
+2. 子节点sealerA收到Prepare包后，将其沿树状拓扑转发给三个子节点
+
+3. 子节点sealerA开始处理Prepare包：
   
-![[图片]](../../../images/consensus/broadcast_prepare_by_tree.png)
+  - 从交易池中获取命中的交易，填充到Prepare包内的区块中
+  - 向父节点Leader请求缺失的交易
 
-## 容错方案
+4. sealerA收到Leader的回包后，将回包内的交易填充到Prepare包内，并随机选取33%的节点广播Prepare包的状态，主要包括{blockNumber, blockHash, view, idx}，其他节点收到该状态包后，将sealerA最新状态包更新到缓存中
 
-**基本思路**
+> sealerA的子节点sealerB的主要处理流程如下：
 
-- 类似于交易广播，每个节点维护rawPrepareReq状态，rawPrepareReq缺失时，根据rawPrepareReq状态去相应节点拉取最新的rawPrepareReq；
-- 用本方案优化bip152协议，节点缺失交易时，不一定向Leader请求缺失的交易，可以向任意拥有最新rawPrepareReq的节点请求；
+1. sealerB收到SealerA转发过来的Prepare包后，同样继续将该Prepare包转发给sealerB的子节点
 
-**主要流程**
+2. sealerB开始处理Prepare包，首先从交易池中获取命中的交易，填充到Prepare包的区块中，并选取节点获取缺失的交易：
+  - 若sealerB缓存来自节点sealerA的prepareStatus.blockHash等于Prepare.blockHash，则直接向父节点sealerA请求缺失交易
+  - 若sealerB缓存的sealerA状态包哈希不等于Prepare.blockHash，但存在来自其他节点C的prepareStatus.blockHash等于prepare.blockHash，则向C请求缺失交易
+  - 若sealerB缓存的任何节点prepareStatus的哈希均不但等于prepare.blockHash，最多等待100ms后(可配)，向Leader请求缺失的交易
 
-- 开启树状广播时，节点addRawPrepareCache，随机挑选30%节点广播rawPrepare包状态rawPrepareStatus，包括{blockNumber, blockHash, view, idx};
-- 节点收到rawPrepareStatus后，首先判断rawPrepareStatus对应的Prepare包是否是新的：(1) rawPrepareStatus.blockNumber是否大于当前块高；(2) rawPrepareStatus的状态是否比本地缓存的rawPrepareCache新；若rawPrepareStatus比节点当前的状态新，且节点与父节点断连，则向相应节点发出rawPrepareRequest请求，请求相应的rawPrepare包；
-- 节点收到rawPrepareRequest请求后，若本地缓存相应的rawPrepareCache，则向请求节点回复包含rawPrepare包的rawPrepareResponse；
-- 节点收到rawPrepareResponse后，取出rawPrepare包，运行handlePrepare的流程。
+3. sealerB收到被请求节点回复的交易后，填充Prepare包内区块，并随机选取33%(可配)节点广播Prepare包状态
 
-## 流量负载均衡策略
-
-### 背景
-PBFT/RPBFT启用bip协议后，其他共识节点交易缺失后，向leader请求交易，导致leader出带宽成为瓶颈；
-这里利用了【Prepare包树状广播方案】中的rawPrepare状态同步，优化了缺失交易拉取策略；
-
-### 基本思路
-![[图片]](../../../images/consensus/bip_load_balance.png)
-
-上图展示了主要处理流程：(设是三叉树)
-leader的子节点sealerA的主要处理流程如下：
-- leader产生新区块后，将仅包含交易哈希列表的Prepare包发送给三个子节点；
-- 子节点sealerA收到Prepare包后，将其沿树状拓扑转发给三个子节点；
-- 子节点sealerA开始处理Prepare包：
-  (1) 从交易池中获取命中的交易，填充到Prepare包内的区块中；
-  (2) 向父节点(这里为leader)请求缺失的交易
-- sealerA收到Leader的回包后，将回包内的交易填充到Prepare包内；并随机选取30%的节点广播Prepare包的状态，主要包括{blockHash, blockHeight, view, leader_idx}，其他节点收到该状态包后，将最新的状态包更新到缓存中；
-
-sealerA的子节点sealerB的主要处理流程如下：
-- sealerB收到SealerA转发过来的Prepare包后，同样继续将该Prepare包转发给sealerB的子节点；
-- sealerB开始处理Prepare包：
-  (1) 从交易池中获取命中的交易，填充到Prepare包的区块中；
-  (2) 选取节点获取缺失的交易：(优选选取父节点)
-  ① 获取父节点(这里为sealerA)
-  ② 若sealerB的缓存中已经有来自sealerA且符合要求的Prepare状态包：则直接选取sealerA作为缺失交易请求节点；
-  ③若sealerB的缓存中没有来自sealerA且符合要求的Prepare状态包，但是有来自其他节点符合要求的状态包(状态包哈希与Prepare包哈希一致)，则从中随机选出一个节点去请求缺失交易；
-  ④ 若sealerB缓存中没有符合要求的Prepare状态包，则最多等待100ms后，向Leader请求；
-  (3) sealerB向选出的节点请求缺失交易；
-- sealerB获取缺失交易，并填充满Prepare包后，同样随机选取30%的节点广播Prepare包状态，他节点收到该状态包后，将最新的状态包更新到缓存中；
-
-
-## RPBFT配置项
-
-RPBFT主要包括三个配置项，均位于`group.*.genesis`文件中，会写入创世块：
-
-- `consensus_type`: 配置为`rotating_pbft`即开启RPBFT，默认为`PBFT`
-- `epoch_sealer_num`: 每轮参与共识节点的数目，可通过控制台动态修改，默认为共识节点数目
-- `epoch_block_num`: 共识节点动态切换间隔块高，默认为1000
+4. 其他节点收到sealerB的状态包后，将其sealerB的最新状态包更新到缓存中
