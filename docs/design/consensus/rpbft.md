@@ -152,20 +152,22 @@ RPBFT开启Prepare包结构优化后，其他共识节点交易缺失后，向le
 
 ```eval_rst
 .. mermaid::
-sequenceDiagram
- participant leader
- participant sealerA(父节点)
- participant sealerB(子节点)
- 
- leader->>sealerA(父节点): 发送Prepare
- leader->>sealerA(父节点): 发送Prepare状态{hash}
- sealerA(父节点)->>sealerA(父节点): 更新Prepare状态{leader, hash}
- sealerA(父节点)->>sealerB(子节点): 转发Prepare
- sealerA(父节点)->>sealerA(父节点): 向leader请求并获取缺失交易，Prepare包加入缓存
- sealerA(父节点)->>sealerB(子节点): 发送Prepare状态{hash}
- sealerB(子节点)->>sealerB(子节点): 更新Prepare状态{sealerA, hash}
- sealerB(子节点)->>sealerB(子节点): 向sealerA请求缺失并获取，Prepare包加入缓存
- sealerB(子节点)->>leader: 发送Prepare状态{hash}
+
+  sequenceDiagram
+  participant leader
+  participant sealerA(父节点)
+  participant sealerB(子节点)
+  
+  leader->>sealerA(父节点): 发送Prepare
+  leader->>sealerA(父节点): 发送Prepare状态{hash}
+  sealerA(父节点)->>sealerA(父节点): 更新Prepare状态{leader, hash}
+  sealerA(父节点)->>sealerB(子节点): 转发Prepare
+  sealerA(父节点)->>sealerA(父节点): 向leader请求并获取缺失交易，Prepare包加入缓存
+  sealerA(父节点)->>sealerB(子节点): 发送Prepare状态{hash}
+  sealerB(子节点)->>sealerB(子节点): 更新Prepare状态{sealerA, hash}
+  sealerB(子节点)->>sealerB(子节点): 向sealerA请求缺失并获取，Prepare包加入缓存
+  sealerB(子节点)->>leader: 发送Prepare状态{hash}
+  
  ```
 
 > Leader的子节点sealerA的主要处理流程如下：
