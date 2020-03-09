@@ -14,7 +14,7 @@ FISCO BCOS supports multiple ledger. Each chain includes multiple unique ledgers
 
 ```eval_rst
 .. important::
-    - The public IP addresses of the cloud host are virtual IP addresses. If listen_ip is filled in external network IP address, the binding fails. You must fill in 0.0.0.0.
+    - The public IP addresses of the cloud host are virtual IP addresses. If listen_ip/jsonrpc_listen_ip/channel_listen_ip is filled in external network IP address, the binding fails. You must fill in 0.0.0.0.
 
     - RPC/P2P/Channel listening port must be in the range of 1024-65535 and cannot conflict with other application listening ports on the machine.
 
@@ -22,15 +22,26 @@ FISCO BCOS supports multiple ledger. Each chain includes multiple unique ledgers
 
 ### Configure RPC
 
-- `listen_ip`: For security reasons, the chain building script will listen to 127.0.0.1 by default. If you need to access the RPC or use SDK through external network, please listen to **external network IP address of node** or `0.0.0.0`;
+- `jsonrpc_listen_ip`：RPC listening IP, security considerations, the default setting is 127.0.0.0, if there is an external network access requirement, please monitor **node external network IP** or `0.0.0.0`;
+- `channel_listen_ip`: Channel listening IP, to facilitate node and SDK cross-machine deployment, the default setting is `0.0.0.0`;
 - `channel_listen_port`: Channel port, is corresponding to `channel_listen_port` in [Web3SDK](../sdk/sdk.html#id2) configuration;
 - `jsonrpc_listen_port`: JSON-RPC port.
+
+```eval_rst
+.. note::
+    For security and ease of use consideration, the latest configuration of v2.3.0 version splits `listen_ip` into` jsonrpc_listen_ip` and `channel_listen_ip`, but still retains the parsing function of` listen_ip`:
+
+     - Include only `listen_ip` in the configuration: The listening IPs of both RPC and Channel are configured` listen_ip`
+     - The configuration also contains `listen_ip`,` channel_listen_ip`, or `jsonrpc_listen_ip`: Priority is given to` channel_listen_ip` and `jsonrpc_listen_ip`. Configuration items that are not configured are replaced with the value of` listen_ip`
+```
+
 
 RPC configuration example is as follows:
 
 ```ini
 [rpc]
-    listen_ip=127.0.0.1
+    channel_listen_ip=0.0.0.0
+    jsonrpc_listen_ip=127.0.0.1
     channel_listen_port=30301
     jsonrpc_listen_port=30302
 ```

@@ -12,22 +12,31 @@ FISCO BCOS支持多账本，每条链包括多个独立账本，账本间数据�
 
 ```eval_rst
 .. important::
-    - 云主机的公网IP均为虚拟IP，若listen_ip填写外网IP，会绑定失败，须填写0.0.0.0
+    - 云主机的公网IP均为虚拟IP，若listen_ip/jsonrpc_listen_ip/channel_listen_ip填写外网IP，会绑定失败，须填写0.0.0.0
     - RPC/P2P/Channel监听端口必须位于1024-65535范围内，且不能与机器上其他应用监听端口冲突
 ```
 
 ### 配置RPC
 
-- `listen_ip`: 安全考虑，建链脚本默认监听127.0.0.1，如果需要外网访问RPC或外网使用SDK请监听**节点的外网IP**或`0.0.0.0`；
+- `jsonrpc_listen_ip`：RPC监听IP，安全考虑，默认设置为127.0.0.0，若有外网访问需求，请监听**节点外网IP**或`0.0.0.0`；
+- `channel_listen_ip`: Channel监听IP，为方便节点和SDK跨机器部署，默认设置为`0.0.0.0`；
 - `channel_listen_port`: Channel端口，对应到[Web3SDK](../sdk/java_sdk.html#id2)配置中的`channel_listen_port`；
 - `jsonrpc_listen_port`: JSON-RPC端口。
 
+```eval_rst
+.. note::
+    出于安全性和易用性考虑，v2.3.0版本最新配置将`listen_ip`拆分成`jsonrpc_listen_ip`和`channel_listen_ip`，但仍保留对`listen_ip`的解析功能：
+     
+     - 配置中仅包含`listen_ip`：RPC和Channel的监听IP均为配置的`listen_ip`
+     - 配置中同时包含`listen_ip`、`channel_listen_ip`或`jsonrpc_listen_ip`：优先解析`channel_listen_ip`和`jsonrpc_listen_ip`，没有配置的配置项用`listen_ip`的值替代
+```
 
 RPC配置示例如下：
 
 ```ini
 [rpc]
-    listen_ip=127.0.0.1
+    channel_listen_ip=0.0.0.0
+    jsonrpc_listen_ip=127.0.0.1
     channel_listen_port=30301
     jsonrpc_listen_port=30302
 ```

@@ -82,7 +82,7 @@ The directory structure is as follows:
 ### Configure console
 - Blockchain node and certificate configuration:
    - To copy the `ca.crt`, `sdk.crt`, and `sdk.key` files in the sdk node directory to the `conf` directory.
-   - To rename the `applicationContext-sample.xml` file in the `conf` directory to the `applicationContext.xml` file. To configure the `applicationContext.xml` file, where the remark content is modified according to the blockchain node configuration. **Hint: If the listen_ip set through chain building is 127.0.0.1 or 0.0.0.0 and the channel_port is 20200, the `applicationContext.xml` configuration is not modified. **
+   - To rename the `applicationContext-sample.xml` file in the `conf` directory to the `applicationContext.xml` file. To configure the `applicationContext.xml` file, where the remark content is modified according to the blockchain node configuration. **Hint: If the channel_listen_ip(If the node version is earlier than v2.3.0, check the configuration item listen_ip) set through chain building is 127.0.0.1 or 0.0.0.0 and the channel_port is 20200, the `applicationContext.xml` configuration is not modified. **
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -146,7 +146,7 @@ The directory structure is as follows:
 ### Configure OSCCA-approved cryptography console
 - Blockchain node and certificate configuration:
    - To copy the `ca.crt`, `sdk.crt`, and `sdk.key` files in the sdk node directory to the `conf` directory.
-   - To rename the `applicationContext-sample.xml` file in the `conf` directory to the `applicationContext.xml` file. To configure the `applicationContext.xml` file, where the remark content is modified according to the blockchain node configuration. **Hint: If the listen_ip set through chain building is 127.0.0.1 or 0.0.0.0 and the channel_port is 20200, the `applicationContext.xml` configuration is not modified. **
+   - To rename the `applicationContext-sample.xml` file in the `conf` directory to the `applicationContext.xml` file. To configure the `applicationContext.xml` file, where the remark content is modified according to the blockchain node configuration. **Hint: If the channel_listen_ip(If the node version is earlier than v2.3.0, check the configuration item listen_ip) set through chain building is 127.0.0.1 or 0.0.0.0 and the channel_port is 20200, the `applicationContext.xml` configuration is not modified. **
   
 - Open OSCCA-approved cryptography switch
 ```
