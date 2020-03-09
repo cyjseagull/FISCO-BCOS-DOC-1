@@ -134,7 +134,7 @@ RPBFT算法目前实现中，轮流将共识委员列表节点替换为验证节
 
 (3) 若节点B的状态落后于节点A，且节点B与其父节点断连，则节点B向节点A发出prepareRequest请求，请求相应的Prepare包
 
-(4) 若节点B的状态落后于节点A，但节点B与其父节点相连，若节点B最多等待[100ms(可配)]()后，状态仍然落后于节点A，则节点B向节点A发出prepareRequest请求，请求相应的Prepare包
+(4) 若节点B的状态落后于节点A，但节点B与其父节点相连，若节点B最多等待[100ms(可配)](../../manual/configuration.html#rpbft)后，状态仍然落后于节点A，则节点B向节点A发出prepareRequest请求，请求相应的Prepare包
 
 (5) 节点B收到节点A的prepareRequest请求后，向其回复相应的Prepare消息包
 
@@ -172,26 +172,26 @@ RPBFT开启Prepare包结构优化后，其他共识节点交易缺失后，向le
 
 **Leader的子节点sealerA的主要处理流程如下：**
 
-1. leader产生新区块后，将仅包含交易哈希列表的Prepare包发送给三个子节点
+(1) leader产生新区块后，将仅包含交易哈希列表的Prepare包发送给三个子节点
 
-2. 子节点sealerA收到Prepare包后，将其沿树状拓扑转发给三个子节点
+(2) 子节点sealerA收到Prepare包后，将其沿树状拓扑转发给三个子节点
 
-3. 子节点sealerA开始处理Prepare包：
+(3) 子节点sealerA开始处理Prepare包：
   
   - 从交易池中获取命中的交易，填充到Prepare包内的区块中
   - 向父节点Leader请求缺失的交易
 
-4. sealerA收到Leader的回包后，将回包内的交易填充到Prepare包内，并随机选取33%的节点广播Prepare包的状态，主要包括{blockNumber, blockHash, view, idx}，其他节点收到该状态包后，将sealerA最新状态包更新到缓存中
+(4) sealerA收到Leader的回包后，将回包内的交易填充到Prepare包内，并随机选取33%的节点广播Prepare包的状态，主要包括{blockNumber, blockHash, view, idx}，其他节点收到该状态包后，将sealerA最新状态包更新到缓存中
 
 **sealerA的子节点sealerB的主要处理流程如下**
 
-1. sealerB收到SealerA转发过来的Prepare包后，同样继续将该Prepare包转发给sealerB的子节点
+(1) sealerB收到SealerA转发过来的Prepare包后，同样继续将该Prepare包转发给sealerB的子节点
 
-2. sealerB开始处理Prepare包，首先从交易池中获取命中的交易，填充到Prepare包的区块中，并选取节点获取缺失的交易：
+(2) sealerB开始处理Prepare包，首先从交易池中获取命中的交易，填充到Prepare包的区块中，并选取节点获取缺失的交易：
   - 若sealerB缓存来自节点sealerA的prepareStatus.blockHash等于Prepare.blockHash，则直接向父节点sealerA请求缺失交易
   - 若sealerB缓存的sealerA状态包哈希不等于Prepare.blockHash，但存在来自其他节点C的prepareStatus.blockHash等于prepare.blockHash，则向C请求缺失交易
-  - 若sealerB缓存的任何节点prepareStatus的哈希均不但等于prepare.blockHash，最多等待100ms后(可配)，向Leader请求缺失的交易
+  - 若sealerB缓存的任何节点prepareStatus的哈希均不但等于prepare.blockHash，最多等待[100ms(可配)](../../manual/configuration.html#rpbft)后，向Leader请求缺失的交易
 
-3. sealerB收到被请求节点回复的交易后，填充Prepare包内区块，并随机选取33%(可配)节点广播Prepare包状态
+(3) sealerB收到被请求节点回复的交易后，填充Prepare包内区块，并随机选取[33%(可配)](../../manual/configuration.html#rpbft)节点广播Prepare包状态
 
-4. 其他节点收到sealerB的状态包后，将其sealerB的最新状态包更新到缓存中
+(4) 其他节点收到sealerB的状态包后，将其sealerB的最新状态包更新到缓存中
